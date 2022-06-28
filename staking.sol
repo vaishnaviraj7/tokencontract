@@ -2,37 +2,42 @@
 
 pragma solidity ^0.8.0;
 
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-
 contract Staking
 {
     address[] internal stakeholders;
     uint256 rewardPerDay;
+    uint256 totalSupply;
 
     mapping(address => uint256) internal stakes;
+    mapping(address => uint256) public balance;
     mapping(address => uint256) internal rewards;
 
     
     constructor(address _owner, uint256 _supply) public
     { 
-        _mint(_owner, _supply);
+        mint(_owner, _supply);
     }
 
+    function mint(uint256 amount) public 
+    {
+        balance[msg.sender] += 10000;
+    }
+
+    function burn(uint256 _value) public
+    {
+        require(_value <= balance[msg.sender]);
+        address burner = msg.sender;
+        balance[burner] -= _value;
+        totalSupply -= _value;
+    }
 
     function createStake(uint256 _stake) public
     {
-        _burn(msg.sender, _stake);
+        burn(msg.sender, _stake);
         if(stakes[msg.sender] == 0) addStakeholder(msg.sender);
         stakes[msg.sender] = stakes[msg.sender].add(_stake);
     }
 
-
-    function removeStake(uint256 _stake) public
-    {
-        stakes[msg.sender] = stakes[msg.sender].sub(_stake);
-        if(stakes[msg.sender] == 0) removeStakeholder(msg.sender);
-        _mint(msg.sender, _stake);
-    }
 
   
     function stakeOf(address _stakeholder) public view returns(uint256)
@@ -108,6 +113,6 @@ contract Staking
     {
         uint256 reward = rewards[msg.sender];
         rewards[msg.sender] = 0;
-        _mint(msg.sender, reward);
+        mint(msg.sender, reward);
     }
 }
