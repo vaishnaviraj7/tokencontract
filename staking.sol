@@ -1,62 +1,55 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity  ^0.4.0 ;
 
-contract Staking
+contract stakeable 
 {
-    address[] internal stakeholders;
+
+    struct Staker 
+    {
+        uint256 deposited;
+        uint256 timeOfLastUpdate;
+        uint256 unclaimedRewards;
+    }
+
+    address [] stakeholders;
+    uint256 stakingStartTime;
+    uint256 totalStake; 
     uint256 rewardPerDay;
-    uint256 totalSupply;
+    uint256 _totalSupply;
+    string _name;
 
-    mapping(address => uint256) internal stakes;
+    mapping(address => Staker) internal stakers;
     mapping(address => uint256) public balance;
-    mapping(address => uint256) internal rewards;
+    mapping(address => uint256) stakeAmount;
 
+
+    constructor() public
+    {
+        stakingStartTime = block.timestamp;
+        _name = "ABC";
+        _totalSupply = 40000 * 10 ** 18;
+    }
     
-    constructor(address _owner, uint256 _supply) public
-    { 
-        mint(_owner, _supply);
-    }
 
-    function mint(uint256 amount) public 
+     function deposit(uint256 _amount) public
     {
-        balance[msg.sender] += 10000;
-    }
-
-    function burn(uint256 _value) public
-    {
-        require(_value <= balance[msg.sender]);
-        address burner = msg.sender;
-        balance[burner] -= _value;
-        totalSupply -= _value;
-    }
-
-    function createStake(uint256 _stake) public
-    {
-        burn(msg.sender, _stake);
-        if(stakes[msg.sender] == 0) addStakeholder(msg.sender);
-        stakes[msg.sender] = stakes[msg.sender].add(_stake);
-    }
-
-
-  
-    function stakeOf(address _stakeholder) public view returns(uint256)
-    {
-        return stakes[_stakeholder];
-    }
-
-
-    function totalStakes() public view returns(uint256)
-    {
-        uint256 _totalStakes = 0;
-        for (uint256 i = 0; i < stakeholders.length; i++ )
+        if (stakers[msg.sender].deposited == 0) 
         {
-            _totalStakes = _totalStakes.add(stakes[stakeholders[i]]);
+            stakers[msg.sender].deposited = _amount;
+            stakers[msg.sender].timeOfLastUpdate = block.timestamp;
+            stakers[msg.sender].unclaimedRewards = 0;
+        } 
+        else 
+        {
+            uint256 rewards = calculateRewards(msg.sender);
+            stakers[msg.sender].unclaimedRewards += rewards;
+            stakers[msg.sender].deposited += _amount;
+            stakers[msg.sender].timeOfLastUpdate = block.timestamp;
         }
-        return _totalStakes;
     }
 
-  
+
     function isStakeholder(address _address) public view returns(bool, uint256)
     {
         for (uint256 i = 0; i < stakeholders.length; i++)
@@ -77,42 +70,57 @@ contract Staking
     }
 
 
-
-    function rewardOf(address _stakeholder) public view returns(uint256)
-    {
-        return rewards[_stakeholder];
-    }
-
     function div(uint256 a, uint256 c) internal pure returns (uint256) 
     {
             require(c > 0);
             return a / c;
     }
+    
 
-
-
-    function calculateReward(address _stakeholder, uint b) public view returns(uint256)
-    {
-        b = div (10000, 356);
-        rewardPerDay  = (div (stake, _totalStakes)) * b;
-        return stakes[_stakeholder] / 100;
-    }
-
-
-    function distributeRewards() public
-    {
-        for (uint256 i = 0; i < stakeholders.length; i += 1)
+    function CalculateTotalStake () public returns (uint256)
+     {
+        for (uint256 i = 0; i< stakeholders.length; i++)
         {
-            address stakeholder = stakeholders[i];
-            uint256 reward = calculateReward(stakeholder);
-            rewards[stakeholder] = rewards[stakeholder].add(reward);
+            totalStake += stakeAmount[stakeholders[i]];
         }
+        return  totalStake;
     }
 
-    function claimReward() public
+
+    function CalculaterewardPerDay () public returns (uint256)
     {
-        uint256 reward = rewards[msg.sender];
-        rewards[msg.sender] = 0;
-        mint(msg.sender, reward);
+        for (uint256 i=0; i < stakeholders.length; i++) 
+        {
+            uint256 b = div (10000, 356);
+            rewardPerDay  = (div (stakeAmount[stakeholders[i]], totalStake)) * b;
+        }
+        return rewardPerDay;
     }
+    
+
+     function calculateRewards(address _staker) public view returns (uint256 rewards)
+    {
+        uint256 time;
+        time = block.timestamp - stakers[_staker].timeOfLastUpdate;
+        rewards = ((time) * stakers[_staker].deposited) * rewardPerDay; 
+        return rewards;
+    }
+    
+
+    function mint (uint256 value) public
+    {
+        balance[msg.sender] += value;
+    }
+    
+
+    function claimRewards() public
+    {
+        uint256 rewards = calculateRewards(msg.sender) + stakers[msg.sender].unclaimedRewards;
+        require(rewards > 0);
+        stakers[msg.sender].unclaimedRewards = 0;
+        stakers[msg.sender].timeOfLastUpdate = block.timestamp;
+        mint(rewards);
+    }
+        
 }
+
