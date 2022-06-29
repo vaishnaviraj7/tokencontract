@@ -102,7 +102,7 @@ contract stakeable
     {
         uint256 time;
         time = block.timestamp - stakers[_staker].timeOfLastUpdate;
-        rewards = ((time) * stakers[_staker].deposited) * rewardPerDay; 
+        rewards = div((((time) * stakers[_staker].deposited) * rewardPerDay), 86400); 
         return rewards;
     }
     
